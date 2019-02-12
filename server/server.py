@@ -6,10 +6,9 @@ import os, pickle
 
 """
     TODO:
-    1) Write logic for deleted files
-    2) Create threads for sha1 as big files will take time
-    3) Use threaded FTPServer 
-    4) Write logic to create unique folder mappings eg
+    1) Create threads for sha1 as big files will take time
+    2) Use threaded FTPServer 
+    3) Write logic to create unique folder mappings eg
         dir2 = canjsk
         dir2/dir2 = ckamskm
         dir2/dir1 = safnj
@@ -52,8 +51,6 @@ def dumpDB(db):
 genAndDump = lambda x: dumpDB(
     generateDB()
 )  # Utility function to refresh db on closed connection
-if not os.path.exists('./.sync'):
-    genAndDump(1)
 
 authorizer = DummyAuthorizer()
 # TODO: Replace with unique username,password for unique homedirs
@@ -62,6 +59,7 @@ authorizer.add_user("user", "12345", homedir=os.getcwd(), perm="elradfmw")
 handler = FTPHandler
 handler.authorizer = authorizer
 handler.on_disconnect = genAndDump # Refresh DB on close
+handler.on_connect = genAndDump
 
 server = FTPServer(("127.0.0.1", 9090), handler)
 server.serve_forever()

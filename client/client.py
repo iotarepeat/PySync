@@ -13,19 +13,18 @@ ftp.login(user="user", passwd="12345")
 
 
 """
-	TODO:
-	1) Write logic for deleted files
-	2) Configuration for 1-way or 2-way sync,
-		1-way: Disable uploads
+    TODO:
+    1) Configuration for 1-way or 2-way sync,
+        1-way: Disable uploads
 """
 
 
 def generateDB(dir="."):
     """
-		Creates a dictionary of directory tree(all files) in dir(default=current dir):
-		key: Complete file path.
-				EG: ./dir1/dir2/file.ext
-		value: sha1sum of the respective file
+        Creates a dictionary of directory tree(all files) in dir(default=current dir):
+        key: Complete file path.
+                EG: ./dir1/dir2/file.ext
+        value: sha1sum of the respective file
     """
     try:
         os.mkdir("./.sync")
@@ -48,11 +47,16 @@ def generateDB(dir="."):
 
 def dumpDB(db):
     """
-		Writes db  dictionary to ./.sync/sync
+        Writes db  dictionary to ./.sync/sync
     """
     with open("./.sync/sync", "wb") as f:
         pickle.dump(db, f)
     logging.info("Successfully written db")
+
+
+def deleteFile(filename):
+    logging.info("Deleting from  remote " + filename)
+    ftp.delete(filename[2:])
 
 
 def uploadFile(filename):
@@ -71,9 +75,9 @@ def downloadFile(filename):
 
 def getTimestamp(file_name):
     """
-		Get unix timestamp (since epoch) from remote system
-		of given file_name
-	"""
+        Get unix timestamp (since epoch) from remote system
+        of given file_name
+    """
     file_name = file_name[2:]
     x = ftp.mlsd("", ["modify"])
     # Since mlsd returns tuple with modify time as UTC, logic to convert it
@@ -90,15 +94,15 @@ def getTimestamp(file_name):
 
 def init():
     """
-		Open sync and store in db (previous)
-		Overwrite sync with remote sync file 
-			Read remote_sync to remote
-	"""
-    if os.path.exists('./.sync'):
+        Open sync and store in db (previous)
+        Overwrite sync with remote sync file 
+            Read remote_sync to remote
+    """
+    if os.path.exists("./.sync"):
         with open("./.sync/sync", "rb") as f:
             db = pickle.load(f)
     else:
-        db=generateDB()
+        db = generateDB()
     downloadFile("./.sync/sync")
     with open("./.sync/sync", "rb") as f:
         remote = pickle.load(f)
@@ -106,10 +110,13 @@ def init():
     return db, remote
 
 
-dumpDB(generateDB())
-db, remote = init()
+prev_db, remote = init()
+db = generateDB()
 perfect_files = []
 for i in db:
+    if prev_db.get(i, False):
+        # Check if file has been deleted
+        del prev_db[i]
     if db[i] == remote.get(i):
         # Exactly same sha1hash
         perfect_files.append(i)
@@ -127,6 +134,10 @@ for i in db:
             logging.info("Uploading {} since new".format(i))
             uploadFile(i)
 
+for i in prev_db:
+    # Delete files from remote
+    deleteFile(i)
+    del remote[i]
 for i in perfect_files:
     del remote[i]
 for i in remote:
