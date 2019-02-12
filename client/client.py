@@ -94,8 +94,11 @@ def init():
 		Overwrite sync with remote sync file 
 			Read remote_sync to remote
 	"""
-    with open("./.sync/sync", "rb") as f:
-        db = pickle.load(f)
+    if os.path.exists('./.sync'):
+        with open("./.sync/sync", "rb") as f:
+            db = pickle.load(f)
+    else:
+        db=generateDB()
     downloadFile("./.sync/sync")
     with open("./.sync/sync", "rb") as f:
         remote = pickle.load(f)

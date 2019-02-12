@@ -52,7 +52,8 @@ def dumpDB(db):
 genAndDump = lambda x: dumpDB(
     generateDB()
 )  # Utility function to refresh db on closed connection
-genAndDump(1)
+if not os.path.exists('./.sync'):
+    genAndDump(1)
 
 authorizer = DummyAuthorizer()
 # TODO: Replace with unique username,password for unique homedirs
