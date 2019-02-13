@@ -128,7 +128,7 @@ class Client:
     def downloadFile(self, filename):
         # Create directory if doesn't exist
         if not os.path.exists(os.path.dirname(filename)):
-            os.mkdir(os.path.dirname(filename))
+            os.mkdirs(os.path.dirname(filename))
         localfile = open(filename, "wb")
         self.ftp.retrbinary("RETR " + filename, localfile.write, 1024)
         localfile.close()
