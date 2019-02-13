@@ -27,10 +27,10 @@ class Server(FTPServer):
         genAndDump = lambda x: self.dumpDB(
             self.generateDB()
         )  # Utility function to refresh db on closed connection
-        self.cwd = Path(directory)
         authorizer = DummyAuthorizer()
         # TODO: Replace with unique username,password for unique homedirs
-        authorizer.add_user("user", "12345", homedir=self.cwd, perm="elradfmw")
+        authorizer.add_user("user", "12345", homedir=directory, perm="elradfmw")
+        self.cwd = Path(directory)
 
         handler = FTPHandler
         handler.authorizer = authorizer
@@ -129,7 +129,7 @@ class Client(Server):
     def downloadFile(self, filename):
         # Create directory if doesn't exist
         if not os.path.exists(os.path.dirname(Path(filename))):
-            os.mkdirs(os.path.dirname(Path(filename)))
+            os.makedirs(os.path.dirname(Path(filename)))
         localfile = open(Path(filename), "wb")
         self.ftp.retrbinary("RETR " + filename, localfile.write, 1024)
         localfile.close()
