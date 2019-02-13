@@ -1,5 +1,6 @@
 import logging
-import os,sys
+import os, sys
+from pathlib import Path
 import pickle
 from datetime import datetime, timezone
 from ftplib import FTP
@@ -22,8 +23,23 @@ from pyftpdlib.servers import FTPServer
 
 
 class Server(FTPServer):
-    @staticmethod
-    def generateDB(dir="."):
+    def __init__(self, ip="127.0.0.1", port=9090, directory=os.getcwd()):
+        genAndDump = lambda x: self.dumpDB(
+            self.generateDB()
+        )  # Utility function to refresh db on closed connection
+        self.cwd = Path(directory)
+        authorizer = DummyAuthorizer()
+        # TODO: Replace with unique username,password for unique homedirs
+        authorizer.add_user("user", "12345", homedir=self.cwd, perm="elradfmw")
+
+        handler = FTPHandler
+        handler.authorizer = authorizer
+        handler.on_disconnect = genAndDump  # Refresh DB on close
+        handler.on_connect = genAndDump
+
+        super().__init__((ip, port), handler)
+
+    def generateDB(self,dir="."):
         """
             Creates a dictionary of directory tree(all files) in dir(default=current dir):
             key: Complete file path.
@@ -31,7 +47,7 @@ class Server(FTPServer):
             value: sha1sum of the respective file
         """
         try:
-            os.mkdir("./.sync")
+            os.mkdir(self.cwd/'.sync')
             logging.info("Created .sync dir")
         except FileExistsError:
             pass
@@ -48,30 +64,13 @@ class Server(FTPServer):
         logging.debug("db = " + str(db))
         return db
 
-    @staticmethod
-    def dumpDB(db):
+    def dumpDB(self,db):
         """
             Writes db  dictionary to ./.sync/sync
         """
-        with open("./.sync/sync", "wb") as f:
+        with open(self.cwd/'.sync/sync', "wb") as f:
             pickle.dump(db, f)
         logging.info("Successfully written db")
-
-    def __init__(self,ip="127.0.0.1",port=9090,directory=os.getcwd()):
-        genAndDump = lambda x: self.dumpDB(
-            self.generateDB()
-        )  # Utility function to refresh db on closed connection
-
-        authorizer = DummyAuthorizer()
-        # TODO: Replace with unique username,password for unique homedirs
-        authorizer.add_user("user", "12345", homedir=directory, perm="elradfmw")
-
-        handler = FTPHandler
-        handler.authorizer = authorizer
-        handler.on_disconnect = genAndDump  # Refresh DB on close
-        handler.on_connect = genAndDump
-
-        super().__init__((ip,port), handler)
 
 
 """
@@ -81,7 +80,7 @@ class Server(FTPServer):
 """
 
 
-class Client:
+class Client(Server):
     def __init__(
         self,
         ip="localhost",
@@ -89,7 +88,9 @@ class Client:
         user="user",
         password="12345",
         logging_level=logging.INFO,
+        directory=os.getcwd()
     ):
+        self.cwd=Path(directory)
         logging.basicConfig(level=logging_level)
         self.ftp = FTP("")
         self.ftp.connect(ip, port)
@@ -104,15 +105,15 @@ class Client:
                 Read remote_sync to remote
         """
         # Check for previous db
-        if os.path.exists("./.sync/sync"):
-            with open("./.sync/sync", "rb") as f:
+        if os.path.exists(self.cwd/"./.sync/sync"):
+            with open(self.cwd/"./.sync/sync", "rb") as f:
                 db = pickle.load(f)
         else:
             # Else generate
-            db = self.db= Server.generateDB()
+            db = self.db = self.generateDB()
         # Get remote db, overwrite local sync file
         self.downloadFile("./.sync/sync")
-        with open("./.sync/sync", "rb") as f:
+        with open(self.cwd/"./.sync/sync", "rb") as f:
             remote = pickle.load(f)
         logging.debug("db = {}\nremote = {}".format(db, remote))
         return db, remote
@@ -122,14 +123,14 @@ class Client:
         self.ftp.delete(filename[2:])  # 2: Is to remove './'
 
     def uploadFile(self, filename):
-        self.ftp.storbinary("STOR " + filename, open(filename, "rb"))
+        self.ftp.storbinary("STOR " + filename, open(Path(filename), "rb"))
         logging.info("Uploaded " + filename)
 
     def downloadFile(self, filename):
         # Create directory if doesn't exist
-        if not os.path.exists(os.path.dirname(filename)):
-            os.mkdirs(os.path.dirname(filename))
-        localfile = open(filename, "wb")
+        if not os.path.exists(os.path.dirname(Path(filename))):
+            os.mkdirs(os.path.dirname(Path(filename)))
+        localfile = open(Path(filename), "wb")
         self.ftp.retrbinary("RETR " + filename, localfile.write, 1024)
         localfile.close()
         logging.info("Downloaded " + filename)
@@ -154,7 +155,7 @@ class Client:
 
     def sync(self):
         prev_db, remote = self.get_db()
-        db = self.db = Server.generateDB()
+        db = self.db = self.generateDB()
         perfect_files = []
         for i in db:
             if prev_db.get(i, False):
@@ -170,7 +171,7 @@ class Client:
             else:
                 # SHA1 mismatch. Sync according to newer file
                 perfect_files.append(i)
-                if self.getTimestamp(i) > os.stat(i).st_mtime:
+                if self.getTimestamp(i) > os.stat(Path(i)).st_mtime:
                     logging.info("Downloading {} since new".format(i))
                     self.downloadFile(i)
                 else:
@@ -187,12 +188,14 @@ class Client:
             # Download missing files on local
             self.downloadFile(i)
         # Refresh DB
-        Server.dumpDB(self.db)
+        self.dumpDB(self.db)
+
+
 # Client
-if sys.argv[1].lower()=='c':
+if sys.argv[1].lower() == "c":
     c = Client()
     c.sync()
     c.ftp.quit()
 # Server
-if sys.argv[1].lower()=='s':
+if sys.argv[1].lower() == "s":
     Server().serve_forever()
