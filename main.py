@@ -1,4 +1,5 @@
 import logging
+from multiprocessing.pool import ThreadPool
 import os
 import pickle
 import sys
@@ -59,10 +60,13 @@ class Server(ThreadedFTPServer):
             for File in fileNames
             if path != "./.sync"
         ]
-        db = {}
-        for File in flat_files:
+        def calcHash(File):
             with open(File, "rb") as f:
                 db[File] = sha1(f.read()).hexdigest()
+        db = {}
+        pool = ThreadPool(processes=5)
+        pool.map(calcHash,flat_files)
+        pool.close()
         logging.debug("db = " + str(db))
         return db
 
