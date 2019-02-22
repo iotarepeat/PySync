@@ -1,13 +1,15 @@
 import logging
-import os, sys
-from pathlib import Path
+import os
 import pickle
+import sys
 from datetime import datetime, timezone
 from ftplib import FTP
 from hashlib import sha1
+from pathlib import Path
+
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
-from pyftpdlib.servers import FTPServer
+from pyftpdlib.servers import ThreadedFTPServer
 
 
 """
@@ -22,7 +24,7 @@ from pyftpdlib.servers import FTPServer
 """
 
 
-class Server(FTPServer):
+class Server(ThreadedFTPServer):
     def __init__(self, ip="127.0.0.1", port=9090, directory=os.getcwd()):
         genAndDump = lambda x: self.dumpDB(
             self.generateDB()
