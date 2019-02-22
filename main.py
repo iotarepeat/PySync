@@ -125,14 +125,14 @@ class Client(Server):
         self.ftp.delete(filename[2:])  # 2: Is to remove './'
 
     def uploadFile(self, filename):
-        self.ftp.storbinary("STOR " + filename, open(Path(filename), "rb"))
+        self.ftp.storbinary("STOR " + filename, open(self.cwd/filename, "rb"))
         logging.info("Uploaded " + filename)
 
     def downloadFile(self, filename):
         # Create directory if doesn't exist
-        if not os.path.exists(os.path.dirname(Path(filename))):
-            os.makedirs(os.path.dirname(Path(filename)))
-        localfile = open(Path(filename), "wb")
+        if not os.path.exists(os.path.dirname(self.cwd/filename)):
+            os.makedirs(os.path.dirname(self.cwd/filename))
+        localfile = open(self.cwd/filename, "wb")
         self.ftp.retrbinary("RETR " + filename, localfile.write, 1024)
         localfile.close()
         logging.info("Downloaded " + filename)
@@ -173,7 +173,7 @@ class Client(Server):
             else:
                 # SHA1 mismatch. Sync according to newer file
                 perfect_files.append(i)
-                if self.getTimestamp(i) > os.stat(Path(i)).st_mtime:
+                if self.getTimestamp(i) > os.stat(self.cwd/filename).st_mtime:
                     logging.info("Downloading {} since new".format(i))
                     self.downloadFile(i)
                 else:
