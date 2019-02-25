@@ -23,6 +23,7 @@ class Server(ThreadedFTPServer):
 		"""
 			Initmethod initializes ftp server
 		"""
+		os.chdir(directory)
 		# Utility function to refresh db
 		genAndDump = lambda x: self.dumpDB(self.generateDB())
 
@@ -41,7 +42,7 @@ class Server(ThreadedFTPServer):
 		# Configure ip, port & Authentication for server
 		super().__init__((ip, port), handler)
 
-	def generateDB(self, dir="."):
+	def generateDB(self):
 		"""
 			Creates a dictionary of directory tree(all files) in dir(default=current dir):
 			key: Complete file path.
@@ -57,7 +58,7 @@ class Server(ThreadedFTPServer):
 		# Create a list of all files in cwd
 		flat_files = [
 			path + "/" + File
-			for path, _, fileNames in os.walk(dir)
+			for path, _, fileNames in os.walk('.')
 			for File in fileNames
 			if path != "./.sync" and path != ".\\.sync"
 		]
@@ -109,6 +110,7 @@ class Client(Server):
 			directory is local directory that represents remote directory
 		"""
 		logging.basicConfig(level=logging_level)
+		os.chdir(directory)
 		self.cwd = Path(directory)
 
 		self.ftp = FTP("")
@@ -235,9 +237,9 @@ class Client(Server):
 
 # Client
 if sys.argv[1].lower() == "c":
-	c = Client()
+	c = Client(directory=sys.argv[2])
 	c.sync()
 	c.ftp.quit()
 # Server
 if sys.argv[1].lower() == "s":
-	Server().serve_forever()
+	Server(directory=sys.argv[2]).serve_forever()
