@@ -194,7 +194,7 @@ class Client(Server):
 			TODO: Deletion of remote files on local
 		"""
 		prev_db, remote = self.get_db()  # Initialize remote_db and prev_db
-		db = self.db = self.generateDB()  # Get a fresh copy of current DB
+		db = self.generateDB()  # Get a fresh copy of current DB
 		perfect_files = []
 		for i in db:
 			if prev_db.get(i, False):
@@ -232,7 +232,7 @@ class Client(Server):
 			# Download missing files on local
 			self.downloadFile(i)
 		# Write current DB to file
-		self.dumpDB(self.db)
+		self.dumpDB(db)
 
 
 # Client
