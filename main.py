@@ -13,11 +13,6 @@ from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import ThreadedFTPServer
 
 
-"""
-	TODO: Add logic for deletion of files from server -> client
-"""
-
-
 class Server(ThreadedFTPServer):
     def __init__(self, ip="127.0.0.1", port=9090, directory=os.getcwd()):
         """
@@ -25,7 +20,6 @@ class Server(ThreadedFTPServer):
 		"""
         os.chdir(directory)
         # Utility function to refresh db
-        genAndDump = lambda x: self.dumpDB(self.generateDB())
 
         # Logic for authentication
         authorizer = DummyAuthorizer()
@@ -34,10 +28,32 @@ class Server(ThreadedFTPServer):
         authorizer.add_user("user", "12345", homedir=directory, perm="elradfmw")
 
         self.cwd = Path(directory)
+
+        def genAndDump(*args):
+            db = {}
+            with open(self.cwd / ".sync/sync", "rb") as f:
+                prev_db = pickle.load(f)
+            db = self.generateDB()
+            if prev_db == db:
+                return
+            to_delete = {}
+            for i in prev_db:
+                if i not in db:
+                    to_delete[i] = prev_db[i]
+            with open(self.cwd / ".sync/toDelete", "wb") as f:
+                pickle.dump(to_delete, f)
+            self.dumpDB(db)
+
+        def dump_if_not_existing(*args):
+            if os.path.exists(self.cwd / ".sync/sync") == False:
+                self.dumpDB(self.generateDB())
+            else:
+                genAndDump(args)
+
         handler = FTPHandler
         handler.authorizer = authorizer
         handler.on_disconnect = genAndDump  # Refresh DB on close
-        handler.on_connect = genAndDump  # Refresh DB on connect
+        handler.on_connect = dump_if_not_existing
 
         # Configure ip, port & Authentication for server
         super().__init__((ip, port), handler)
@@ -196,12 +212,24 @@ class Client(Server):
     def sync(self):
         """
 			This function will sync remote and local dir
-			TODO: Deletion of remote files on local
 		"""
         prev_db, remote = self.get_db()  # Initialize remote_db and prev_db
         db = self.generateDB()  # Get a fresh copy of current DB
         perfect_files = []
+
+        def getDelete():
+            try:
+                self.downloadFile("./.sync/toDelete")
+            except:
+                return {}
+            with open(self.cwd / ".sync/toDelete", "rb") as f:
+                delete = pickle.load(f)
+            return delete
+
+        to_delete = getDelete()
+        local_deletion = []
         for i in db:
+
             if prev_db.get(i, False):
                 # Check if file has been deleted
                 # A file is considered deleted if it exists in prev db but does
@@ -213,6 +241,10 @@ class Client(Server):
             if db[i] == remote.get(i):
                 # Exactly same sha1hash
                 perfect_files.append(i)
+            elif to_delete.get(i) == db[i]:
+                logging.info("Deleting: " + i)
+                os.remove(self.cwd / i)
+                local_deletion.append(i)
             elif i not in remote:
                 # Missing files on remote
                 # Exists on local not on remote
@@ -237,6 +269,8 @@ class Client(Server):
             # Download missing files on local
             self.downloadFile(i)
             # Write current DB to file
+        for i in local_deletion:
+            del db[i]
         self.dumpDB(db)
 
 
