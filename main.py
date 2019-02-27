@@ -1,4 +1,5 @@
 import logging
+import json
 from multiprocessing.pool import ThreadPool
 import os
 import pickle
@@ -99,8 +100,8 @@ class Client(Server):
         self,
         ip="localhost",
         port=9090,
-        user="user",
-        password="12345",
+        user=None,
+        password=None,
         logging_level=logging.INFO,
         directory=os.getcwd(),
     ):
@@ -114,7 +115,11 @@ class Client(Server):
         self.cwd = Path(directory)
 
         self.ftp = FTP("")
-        self.ftp.connect(ip, port)
+        try:
+            self.ftp.connect(ip, port, timeout=30)
+        except OSError:
+            logging.info("Failed to connect to {}:{}".format(ip, port))
+            raise OSError
 
         logging.info("Logging in with {}:{}".format(user, password))
         self.ftp.login(user=user, passwd=password)
@@ -238,14 +243,22 @@ class Client(Server):
             self.downloadFile(i)
             # Write current DB to file
         self.dumpDB(db)
+        self.ftp.quit()
 
 
 # Client
 if sys.argv[1].lower() == "c":
-    c = Client(directory=sys.argv[2])
-    c.sync()
-    c.ftp.quit()
+    with open("config.json", "r") as f:
+        config = json.load(f)
+    for directory in config:
+        ip = config[directory]["ip"]
+        del config[directory]["ip"]
+        for i in ip:
+            try:
+                Client(ip=i, **config[directory], directory=directory).sync()
+            except OSError:
+                logging.info("Skipping " + i)
 # Server
 if sys.argv[1].lower() == "s":
-    Server(directory=sys.argv[2]).serve_forever()
+    Server(ip="0.0.0.0", directory=sys.argv[2]).serve_forever()
 

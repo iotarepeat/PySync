@@ -1,0 +1,7 @@
+{
+    "/home/mint/Documents/SEM4/Python/PySync/client": {
+        "ip":["127.0.0.1","192.168.1.12"],
+        "user": "user",
+        "password": "12345"
+    }
+}
