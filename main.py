@@ -115,6 +115,7 @@ class Client(Server):
         self,
         ip="localhost",
         port=9090,
+        read_only=False,
         user="user",
         password="12345",
         logging_level=logging.INFO,
@@ -124,10 +125,17 @@ class Client(Server):
 			Initiate ftp connections to ip:port
 			with user:password
 			directory is local directory that represents remote directory
+			When read_only mode is set, upload and delete are disabled
 		"""
         logging.basicConfig(level=logging_level)
         os.chdir(directory)
+        self.read_only = read_only
+        if self.read_only:
+            logging.warning(
+                "READ-ONLY mode all files that are modified will be overwritten. Please backup if necessary"
+            )
         self.cwd = Path(directory)
+        self.db = None
 
         self.ftp = FTP("")
         self.ftp.connect(ip, port)
@@ -158,14 +166,26 @@ class Client(Server):
         return db, remote
 
     def deleteFile(self, filename):
-        # TODO: Add logic to delete empty directories
+        if self.read_only:
+            logging.info(
+                "Skipped {}, since read-only-mode set by server".format(filename)
+            )
+            return
+            # TODO: Add logic to delete empty directories
         logging.info("Deleting from  remote " + filename)
         self.ftp.delete(filename[2:])  # 2: Is to remove './'
 
     def uploadFile(self, filename):
+        if self.read_only:
+            logging.info(
+                "Skipped {}, since read-only-mode set by server".format(filename)
+            )
+            return
         try:
             self.ftp.storbinary("STOR " + filename, open(self.cwd / filename, "rb"))
         except:
+            # Create directory(s) if non existent
+            logging.debug("Missing file(s) on remote: " + fileename)
             tmp_list = os.path.dirname(filename).split("/")
             if len(tmp_list) == 1:
                 tmp_list = tmp_list[0].split("\\")
@@ -209,28 +229,32 @@ class Client(Server):
                     .timestamp()
                 )
 
+    def getDelete():
+        """
+			Get a dictionary of deleted files from remote
+			key=file_path
+			value=SHA1 hash
+		"""
+        try:
+            self.downloadFile("./.sync/toDelete")
+        except:
+            return {}
+        with open(self.cwd / ".sync/toDelete", "rb") as f:
+            delete = pickle.load(f)
+        return delete
+
     def sync(self):
         """
 			This function will sync remote and local dir
 		"""
         prev_db, remote = self.get_db()  # Initialize remote_db and prev_db
-        db = self.generateDB()  # Get a fresh copy of current DB
+        db = self.db if self.db != None else self.generateDB()
         perfect_files = []
 
-        def getDelete():
-            try:
-                self.downloadFile("./.sync/toDelete")
-            except:
-                return {}
-            with open(self.cwd / ".sync/toDelete", "rb") as f:
-                delete = pickle.load(f)
-            return delete
-
-        to_delete = getDelete()
-        local_deletion = []
+        to_delete = self.getDelete()
         for i in db:
 
-            if prev_db.get(i, False):
+            if prev_db.get(i):
                 # Check if file has been deleted
                 # A file is considered deleted if it exists in prev db but does
                 # not exist in current db
@@ -242,9 +266,10 @@ class Client(Server):
                 # Exactly same sha1hash
                 perfect_files.append(i)
             elif to_delete.get(i) == db[i]:
+                # Check if file is marked deleted on remote
                 logging.info("Deleting: " + i)
                 os.remove(self.cwd / i)
-                local_deletion.append(i)
+                del self.db[i]
             elif i not in remote:
                 # Missing files on remote
                 # Exists on local not on remote
@@ -252,11 +277,12 @@ class Client(Server):
             else:
                 # SHA1 mismatch. Sync according to newer file
                 perfect_files.append(i)
-                if self.getTimestamp(i) > os.stat(self.cwd / i).st_mtime:
-                    logging.info("Downloading {} since new".format(i))
+                if (
+                    self.read_only
+                    or self.getTimestamp(i) > os.stat(self.cwd / i).st_mtime
+                ):
                     self.downloadFile(i)
                 else:
-                    logging.info("Uploading {} since new".format(i))
                     self.uploadFile(i)
 
         for i in prev_db:
@@ -268,15 +294,13 @@ class Client(Server):
         for i in remote:
             # Download missing files on local
             self.downloadFile(i)
-            # Write current DB to file
-        for i in local_deletion:
-            del db[i]
-        self.dumpDB(db)
+		# Write current DB to file
+        self.dumpDB(self.db)
 
 
 # Client
 if sys.argv[1].lower() == "c":
-    c = Client(directory=sys.argv[2])
+    c = Client(directory=sys.argv[2], read_only=True)
     c.sync()
     c.ftp.quit()
 # Server
