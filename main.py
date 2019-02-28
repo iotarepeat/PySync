@@ -229,7 +229,7 @@ class Client(Server):
                     .timestamp()
                 )
 
-    def getDelete():
+    def getDelete(self):
         """
 			Get a dictionary of deleted files from remote
 			key=file_path
@@ -248,7 +248,8 @@ class Client(Server):
 			This function will sync remote and local dir
 		"""
         prev_db, remote = self.get_db()  # Initialize remote_db and prev_db
-        db = self.db if self.db != None else self.generateDB()
+        db = self.db.copy() if self.db != None else self.generateDB()
+        self.db=db.copy()
         perfect_files = []
 
         to_delete = self.getDelete()
@@ -300,7 +301,7 @@ class Client(Server):
 
 # Client
 if sys.argv[1].lower() == "c":
-    c = Client(directory=sys.argv[2], read_only=True)
+    c = Client(directory=sys.argv[2], read_only=False)
     c.sync()
     c.ftp.quit()
 # Server
