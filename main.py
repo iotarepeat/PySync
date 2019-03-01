@@ -15,16 +15,17 @@ from pyftpdlib.servers import ThreadedFTPServer
 
 
 """
-	TODO: Add logic for deletion of files from server -> client
+    TODO: Add logic for deletion of files from server -> client
 """
 
 
 class Server(ThreadedFTPServer):
-    def __init__(self, ip="127.0.0.1", port=9090, directory=os.getcwd()):
+    def __init__(self, ip="127.0.0.1", port=9090, config_file="server.json"):
         """
-			Initmethod initializes ftp server
-		"""
-        os.chdir(directory)
+            Initmethod initializes ftp server
+        """
+        with open(config_file, "r") as f:
+            self.config = json.load(f)
         # Utility function to refresh db
         genAndDump = lambda x: self.dumpDB(self.generateDB())
 
@@ -32,29 +33,40 @@ class Server(ThreadedFTPServer):
         authorizer = DummyAuthorizer()
 
         # TODO: Replace with unique username,password for unique homedirs
-        authorizer.add_user("user", "12345", homedir=directory, perm="elradfmw")
-
-        self.cwd = Path(directory)
+        for user, details in self.config.items():
+            authorizer.add_user(
+                user,
+                details["password"],
+                homedir=details["local_path"],
+                perm=details["perms"],
+            )
+        self.cwd = ""
         handler = FTPHandler
         handler.authorizer = authorizer
         handler.on_disconnect = genAndDump  # Refresh DB on close
-        handler.on_connect = genAndDump  # Refresh DB on connect
+        handler.on_login = self.on_login
 
         # Configure ip, port & Authentication for server
         super().__init__((ip, port), handler)
 
+    def on_login(self, username):
+        self.cwd = Path(self.config[username]["local_path"])
+        self.dumpDB(self.generateDB())
+
     def generateDB(self):
         """
-			Creates a dictionary of directory tree(all files) in dir(default=current dir):
-			key: Complete file path.
-					EG: ./dir1/dir2/file.ext
-			value: sha1sum of the respective file
-		"""
+            Creates a dictionary of directory tree(all files) in dir(default=current dir):
+            key: Complete file path.
+                    EG: ./dir1/dir2/file.ext
+            value: sha1sum of the respective file
+        """
         try:
             os.mkdir(self.cwd / ".sync")
             logging.info("Created .sync dir")
         except FileExistsError:
             pass
+        prev=os.getcwd()
+        os.chdir(self.cwd)
 
             # Create a list of all files in cwd
         flat_files = [
@@ -77,21 +89,22 @@ class Server(ThreadedFTPServer):
         pool.close()
 
         logging.debug("db = " + str(db))
+        os.chdir(prev)
         return db
 
     def dumpDB(self, db):
         """
-			Writes db  dictionary to ./.sync/sync
-		"""
+            Writes db  dictionary to ./.sync/sync
+        """
         with open(self.cwd / ".sync/sync", "wb") as f:
             pickle.dump(db, f)
         logging.info("Successfully written db")
 
 
 """
-	TODO:
-	1) Configuration for 1-way or 2-way sync,
-		1-way: Disable uploads
+    TODO:
+    1) Configuration for 1-way or 2-way sync,
+        1-way: Disable uploads
 """
 
 
@@ -103,16 +116,16 @@ class Client(Server):
         user=None,
         password=None,
         logging_level=logging.INFO,
-        directory=os.getcwd(),
+        local_path=os.getcwd(),
     ):
         """
-			Initiate ftp connections to ip:port
-			with user:password
-			directory is local directory that represents remote directory
-		"""
+            Initiate ftp connections to ip:port
+            with user:password
+            directory is local directory that represents remote directory
+        """
         logging.basicConfig(level=logging_level)
-        os.chdir(directory)
-        self.cwd = Path(directory)
+        self.cwd = Path(local_path)
+        os.chdir(self.cwd)
 
         self.ftp = FTP("")
         try:
@@ -126,11 +139,11 @@ class Client(Server):
 
     def get_db(self):
         """
-			Open sync and store in db (previous)
-				If doesn't exist, generate and return
-			Overwrite sync with remote sync file 
-				Read remote_sync file to remote dict
-		"""
+            Open sync and store in db (previous)
+                If doesn't exist, generate and return
+            Overwrite sync with remote sync file 
+                Read remote_sync file to remote dict
+        """
         # Check for previous db
         if os.path.exists(self.cwd / "./.sync/sync"):
             with open(self.cwd / "./.sync/sync", "rb") as f:
@@ -182,10 +195,10 @@ class Client(Server):
 
     def getTimestamp(self, file_name):
         """
-			Get unix timestamp (since epoch) from remote system
-			of given file_name
-			Otherwise None
-		"""
+            Get unix timestamp (since epoch) from remote system
+            of given file_name
+            Otherwise None
+        """
         file_name = file_name[2:]
         x = self.ftp.mlsd("", ["modify"])
         # Since mlsd returns tuple with modify time as UTC, logic to convert it
@@ -200,9 +213,9 @@ class Client(Server):
 
     def sync(self):
         """
-			This function will sync remote and local dir
-			TODO: Deletion of remote files on local
-		"""
+            This function will sync remote and local dir
+            TODO: Deletion of remote files on local
+        """
         prev_db, remote = self.get_db()  # Initialize remote_db and prev_db
         db = self.generateDB()  # Get a fresh copy of current DB
         perfect_files = []
@@ -248,17 +261,15 @@ class Client(Server):
 
 # Client
 if sys.argv[1].lower() == "c":
-    with open("config.json", "r") as f:
+    with open("client.json", "r") as f:
         config = json.load(f)
-    for directory in config:
-        ip = config[directory]["ip"]
-        del config[directory]["ip"]
-        for i in ip:
-            try:
-                Client(ip=i, **config[directory], directory=directory).sync()
-            except OSError:
-                logging.info("Skipping " + i)
+    for ip in config:
+        try:
+            os.chdir(config[ip]["local_path"])
+            Client(ip=ip, **config[ip]).sync()
+        except OSError:
+            logging.info("Skipping " + ip)
 # Server
 if sys.argv[1].lower() == "s":
-    Server(ip="0.0.0.0", directory=sys.argv[2]).serve_forever()
+    Server(ip="0.0.0.0").serve_forever()
 
