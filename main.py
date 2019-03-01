@@ -171,7 +171,8 @@ class Client(Server):
                 db = pickle.load(f)
         else:
             # Else generate
-            db = self.db = self.generateDB()
+            self.db = self.generateDB()
+            db={}
 
             # Get remote db, overwrite local sync file
         self.downloadFile("./.sync/sync")
@@ -310,9 +311,7 @@ class Client(Server):
         for i in remote:
             # Download missing files on local
             self.downloadFile(i)
-            # Write current DB to file
-            # Write current DB to file
-        self.dumpDB(self.db)
+        self.dumpDB(db)
         self.ftp.quit()
 
 
