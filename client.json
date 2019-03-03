@@ -1,0 +1,12 @@
+{
+    "127.0.0.1": {
+        "local_path":".",
+        "user": "user",
+        "password": "12345"
+    },
+    "192.168.1.12": {
+        "local_path":".",
+        "user": "user",
+        "password": "12345"
+    }
+}
