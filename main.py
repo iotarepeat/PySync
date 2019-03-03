@@ -14,19 +14,17 @@ from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import ThreadedFTPServer
 
 
-class Server(ThreadedFTPServer):
+class Server:
     def __init__(self, ip="127.0.0.1", port=9090, config_file="server.json"):
         """
 			Initmethod initializes ftp server
 		"""
         with open(config_file, "r") as f:
             self.config = json.load(f)
-            # Utility function to refresh db
 
-            # Logic for authentication
+		# Logic for authentication
         authorizer = DummyAuthorizer()
 
-        # TODO: Replace with unique username,password for unique homedirs
         for user, details in self.config.items():
             authorizer.add_user(
                 user,
@@ -41,7 +39,10 @@ class Server(ThreadedFTPServer):
         handler.on_login = self.on_login
 
         # Configure ip, port & Authentication for server
-        super().__init__((ip, port), handler)
+        self.server = ThreadedFTPServer((ip, port), handler)
+
+    def serve_forever(self):
+        self.server.serve_forever()
 
     def genAndDump(self):
         db = {}
@@ -172,7 +173,7 @@ class Client(Server):
         else:
             # Else generate
             self.db = self.generateDB()
-            db={}
+            db = {}
 
             # Get remote db, overwrite local sync file
         self.downloadFile("./.sync/sync")
@@ -201,7 +202,7 @@ class Client(Server):
             self.ftp.storbinary("STOR " + filename, open(self.cwd / filename, "rb"))
         except:
             # Create directory(s) if non existent
-            logging.debug("Missing file(s) on remote: " + fileename)
+            logging.debug("Missing file(s) on remote: " + filename)
             tmp_list = os.path.dirname(filename).split("/")
             if len(tmp_list) == 1:
                 tmp_list = tmp_list[0].split("\\")
