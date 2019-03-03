@@ -1,6 +1,7 @@
 import logging
 import json
 from multiprocessing.pool import ThreadPool
+from multiprocessing import Process
 import os
 import socket
 import pickle
@@ -57,8 +58,8 @@ class Server:
         if prev_db == db:
             return
         if os.path.exists(self.cwd / ".sync/toDelete"):
-            with open(self.cwd / ".sync/toDelete", "wb") as f:
-                self.to_delete = pickle.dump(self.to_delete, f)
+            with open(self.cwd / ".sync/toDelete", "rb") as f:
+                self.to_delete = pickle.load(f)
         else:
             self.to_delete = {}
         for i in prev_db:
@@ -165,10 +166,16 @@ class Client(Server):
 				Read remote_sync file to remote dict
 		"""
         # Get remote db, overwrite local sync file
+        if os.path.exists(self.cwd / "./.sync/sync"):
+            with open(self.cwd / "./.sync/sync", "rb") as f:
+                local = pickle.load(f)
+        else:
+            local = {}
         self.downloadFile("./.sync/sync")
         with open(self.cwd / "./.sync/sync", "rb") as f:
             remote = pickle.load(f)
-        logging.debug("db = {}\nremote = {}".format(db, remote))
+        with open(self.cwd / "./.sync/sync", "wb") as f:
+            pickle.dump(local, f)
         return remote
 
     def deleteFile(self, filename):
@@ -241,13 +248,20 @@ class Client(Server):
 			key=file_path
 			value=SHA1 hash
 		"""
+        local_delete = {}
+        delete = {}
+        if os.path.exists(self.cwd / ".sync/toDelete"):
+            with open(self.cwd / ".sync/toDelete", "rb") as f:
+                local_delete = pickle.load(f)
         try:
             self.downloadFile("./.sync/toDelete")
+            with open(self.cwd / ".sync/toDelete", "rb") as f:
+                delete = pickle.load(f)
         except:
-            return {}
-        with open(self.cwd / ".sync/toDelete", "rb") as f:
-            delete = pickle.load(f)
-        return delete
+            pass
+        with open(self.cwd / ".sync/toDelete", "wb") as f:
+            pickle.dump(local_delete, f)
+        return local_delete, delete
 
     def sync(self):
         """
@@ -256,18 +270,17 @@ class Client(Server):
         remote = self.get_db()  # Initialize remote_db and prev_db
         db = self.generateDB()
         perfect_files = []
-
-        to_delete = self.getDelete()
+        self.genAndDump()
+        local_delete, remote_delete = self.getDelete()
         for i in db:
 
             if db[i] == remote.get(i):
                 # Exactly same sha1hash
                 perfect_files.append(i)
-            elif to_delete.get(i) == db[i]:
+            elif remote_delete.get(i) == db[i]:
                 # Check if file is marked deleted on remote
                 logging.info("Deleting: " + i)
                 os.remove(self.cwd / i)
-                del self.db[i]
             elif i not in remote:
                 # Missing files on remote
                 # Exists on local not on remote
@@ -287,7 +300,10 @@ class Client(Server):
             del remote[i]
         for i in remote:
             # Download missing files on local
-            self.downloadFile(i)
+            if local_delete.get(i) == remote[i]:
+                self.deleteFile(i)
+            else:
+                self.downloadFile(i)
         self.dumpDB(db)
         self.ftp.quit()
 
