@@ -2,6 +2,7 @@ import logging
 import json
 from multiprocessing.pool import ThreadPool
 import os
+import socket
 import pickle
 import sys
 from datetime import datetime, timezone
@@ -22,7 +23,7 @@ class Server:
         with open(config_file, "r") as f:
             self.config = json.load(f)
 
-		# Logic for authentication
+            # Logic for authentication
         authorizer = DummyAuthorizer()
 
         for user, details in self.config.items():
@@ -55,12 +56,16 @@ class Server:
             return
         if prev_db == db:
             return
-        to_delete = {}
+        if os.path.exists(self.cwd / ".sync/toDelete"):
+            with open(self.cwd / ".sync/toDelete", "wb") as f:
+                self.to_delete = pickle.dump(self.to_delete, f)
+        else:
+            self.to_delete = {}
         for i in prev_db:
             if i not in db:
-                to_delete[i] = prev_db[i]
+                self.to_delete[i] = prev_db[i]
         with open(self.cwd / ".sync/toDelete", "wb") as f:
-            pickle.dump(to_delete, f)
+            pickle.dump(self.to_delete, f)
         self.dumpDB(db)
 
     def on_login(self, username):
@@ -115,13 +120,6 @@ class Server:
         logging.info("Successfully written db")
 
 
-"""
-	TODO:
-	1) Configuration for 1-way or 2-way sync,
-		1-way: Disable uploads
-"""
-
-
 class Client(Server):
     def __init__(
         self,
@@ -166,21 +164,12 @@ class Client(Server):
 			Overwrite sync with remote sync file 
 				Read remote_sync file to remote dict
 		"""
-        # Check for previous db
-        if os.path.exists(self.cwd / "./.sync/sync"):
-            with open(self.cwd / "./.sync/sync", "rb") as f:
-                db = pickle.load(f)
-        else:
-            # Else generate
-            self.db = self.generateDB()
-            db = {}
-
-            # Get remote db, overwrite local sync file
+        # Get remote db, overwrite local sync file
         self.downloadFile("./.sync/sync")
         with open(self.cwd / "./.sync/sync", "rb") as f:
             remote = pickle.load(f)
         logging.debug("db = {}\nremote = {}".format(db, remote))
-        return db, remote
+        return remote
 
     def deleteFile(self, filename):
         if self.read_only:
@@ -264,22 +253,13 @@ class Client(Server):
         """
 			This function will sync remote and local dir
 		"""
-        prev_db, remote = self.get_db()  # Initialize remote_db and prev_db
-        db = self.db.copy() if self.db != None else self.generateDB()
-        self.db = db.copy()
+        remote = self.get_db()  # Initialize remote_db and prev_db
+        db = self.generateDB()
         perfect_files = []
 
         to_delete = self.getDelete()
         for i in db:
 
-            if prev_db.get(i):
-                # Check if file has been deleted
-                # A file is considered deleted if it exists in prev db but does
-                # not exist in current db
-
-                # Note this removes files which are 100% known not deleted
-                # Actual deletion happens later
-                del prev_db[i]
             if db[i] == remote.get(i):
                 # Exactly same sha1hash
                 perfect_files.append(i)
@@ -303,10 +283,6 @@ class Client(Server):
                 else:
                     self.uploadFile(i)
 
-        for i in prev_db:
-            # Delete files from remote
-            self.deleteFile(i)
-            del remote[i]
         for i in perfect_files:
             del remote[i]
         for i in remote:
