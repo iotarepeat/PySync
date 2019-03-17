@@ -27,11 +27,11 @@ class Server:
             # Logic for authentication
         authorizer = DummyAuthorizer()
 
-        for user, details in self.config.items():
+        for path, details in self.config.items():
             authorizer.add_user(
-                user,
+                details['user'],
                 details["password"],
-                homedir=details["local_path"],
+                homedir=path,
                 perm=details["perms"],
             )
 
@@ -70,7 +70,10 @@ class Server:
         self.dumpDB(db)
 
     def on_login(self, username):
-        self.cwd = Path(self.config[username]["local_path"])
+        for path,details in self.config.items():
+            if details['user']==username:
+                self.cwd=Path(path)
+                break
         self.genAndDump()
 
     def generateDB(self):
@@ -312,11 +315,12 @@ class Client(Server):
 if sys.argv[1].lower() == "c":
     with open("client.json", "r") as f:
         config = json.load(f)
-    for ip in config:
-        try:
-            Client(ip=ip, **config[ip]).sync()
-        except OSError:
-            logging.info("Skipping " + ip)
+    for path,details in config.items():
+        for ip in details['ip']:
+            try:
+                Client(ip=ip,user=details['user'],password=details['password'],local_path=path).sync()
+            except OSError:
+                logging.info("Skipping " + ip)
 # Server
 if sys.argv[1].lower() == "s":
     Server(ip="0.0.0.0").serve_forever()

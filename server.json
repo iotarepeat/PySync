@@ -1,7 +1,7 @@
 {
-	"user":{
+	"/home/mint/Desktop/server":{
 	"perms":"elradfmw",
 	"password":"12345",
-	"local_path": "."
+	"user":"user"
 	}
 }

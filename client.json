@@ -1,12 +1,7 @@
 {
-    "127.0.0.1": {
-        "local_path":".",
+    "/home/mint/Desktop/client": {
         "user": "user",
-        "password": "12345"
-    },
-    "192.168.1.12": {
-        "local_path":".",
-        "user": "user",
+        "ip":["127.0.0.1"],
         "password": "12345"
     }
 }
