@@ -32,7 +32,7 @@ class Server:
                 details['user'],
                 details["password"],
                 homedir=path,
-                perm=details["perms"],
+                perm="elradfmw" if details["read_only"] else "elr",
             )
 
         handler = FTPHandler
@@ -153,7 +153,7 @@ class Client(Server):
 
         self.ftp = FTP("")
         try:
-            self.ftp.connect(ip, port, timeout=30)
+            self.ftp.connect(ip, port, timeout=10)
         except OSError:
             logging.info("Failed to connect to {}:{}".format(ip, port))
             raise OSError
