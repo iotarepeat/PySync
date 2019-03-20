@@ -7,6 +7,9 @@ THREAD_COUNT = 20
 
 """
         TODO: Add case for missing config files
+        TODO: Add dynamic scan range
+        TODO: Resolve OSError
+        TODO: Windows path conflicts
 """
 def scan(ip, port=9090):
     s = socket.socket()
