@@ -1,19 +1,13 @@
-import logging
 import json
-from multiprocessing.pool import ThreadPool
-from multiprocessing import Process
+import logging
 import os
-import socket
 import pickle
 import sys
 from datetime import datetime, timezone
 from ftplib import FTP
 from hashlib import sha1
+from multiprocessing.pool import ThreadPool
 from pathlib import Path
-
-from pyftpdlib.authorizers import DummyAuthorizer
-from pyftpdlib.handlers import FTPHandler
-from pyftpdlib.servers import ThreadedFTPServer
 
 
 class Server:
@@ -21,6 +15,15 @@ class Server:
 		"""
 			Initmethod initializes ftp server
 		"""
+
+		try:
+			from pyftpdlib.authorizers import DummyAuthorizer
+			from pyftpdlib.handlers import FTPHandler
+			from pyftpdlib.servers import ThreadedFTPServer
+		except ModuleNotFoundError:
+			print("Run: pip install pyftpdlib")
+			exit(0)
+
 		with open(config_file, "r") as f:
 			self.config = json.load(f)
 
