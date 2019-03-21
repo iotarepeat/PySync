@@ -15,6 +15,7 @@ class Server:
 		"""
 			Initmethod initializes ftp server
 		"""
+
 		try:
 			from pyftpdlib.authorizers import DummyAuthorizer
 			from pyftpdlib.handlers import FTPHandler
@@ -22,6 +23,7 @@ class Server:
 		except ModuleNotFoundError:
 			print("Run: pip install pyftpdlib")
 			exit(0)
+
 		with open(config_file, "r") as f:
 			self.config = json.load(f)
 
