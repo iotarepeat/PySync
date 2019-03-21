@@ -11,9 +11,15 @@ from ftplib import FTP
 from hashlib import sha1
 from pathlib import Path
 
-from pyftpdlib.authorizers import DummyAuthorizer
-from pyftpdlib.handlers import FTPHandler
-from pyftpdlib.servers import ThreadedFTPServer
+try:  
+    import pyftpdlib
+except ModuleNotFoundError:  
+        print ("Please pip install pyftpdlib==1.5.4" )
+else:  
+    print ("All modules loaded sucessfully.")
+	from pyftpdlib.authorizers import DummyAuthorizer
+	from pyftpdlib.handlers import FTPHandler
+	from pyftpdlib.servers import ThreadedFTPServer
 
 
 class Server:
