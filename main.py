@@ -32,7 +32,7 @@ class Server:
                 details['user'],
                 details["password"],
                 homedir=path,
-                perm="elradfmw" if details["read_only"] else "elr",
+                perm="elradfmw" if not details["read_only"] else "elr",
             )
 
         handler = FTPHandler
@@ -318,7 +318,7 @@ if sys.argv[1].lower() == "c":
     for path,details in config.items():
         for ip in details['ip']:
             try:
-                Client(ip=ip,user=details['user'],password=details['password'],local_path=path).sync()
+                Client(ip=ip,user=details['user'],password=details['password'],local_path=path,read_only=details['read_only']).sync()
             except OSError:
                 logging.info("Skipping " + ip)
 # Server

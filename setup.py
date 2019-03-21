@@ -21,7 +21,7 @@ def get_ip_list(scan_range="192.168.1.1"):
 	socket.setdefaulttimeout(1)
 	template = '.'.join(scan_range.split(".")[:-1]) + '.'
 	pool = ThreadPool(THREAD_COUNT)
-	results = pool.map(scan, [template + str(i) for i in range(10)])
+	results = pool.map(scan, [template + str(i) for i in range(256)])
 	pool.close()
 	results = [res for res in results if res != False]
 	socket.setdefaulttimeout(None)
