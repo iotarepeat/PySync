@@ -7,8 +7,18 @@ from multiprocessing.pool import ThreadPool
 
 THREAD_COUNT = 20
 
+"""
+	NOTE:
+	This setup.py is an helper script.
+	It should suffice for most home networks.
+	For more complex networks, please edit server.json, client.json files manually
+"""
 
 def scan(ip, port=9090):
+	"""
+		A helper function that scans single ip for a given port [default=9090]
+		returns ip if port exists, False otherwise
+	"""
 	s = socket.socket()
 	conn = s.connect_ex((ip, port))
 	s.close()
@@ -19,6 +29,11 @@ def scan(ip, port=9090):
 
 
 def get_ip_list(scan_range="192.168.1.1"):
+	"""
+		Scan the entire LAN for given ip
+		EG: 192.168.1.(0 to 255)
+		returns list of available hosts
+	"""
 	socket.setdefaulttimeout(1)
 	template = '.'.join(scan_range.split(".")[:-1]) + '.'
 	pool = ThreadPool(THREAD_COUNT)
@@ -30,6 +45,10 @@ def get_ip_list(scan_range="192.168.1.1"):
 
 
 def update_json(data: dict, file_name='client.json'):
+	"""
+		Write data to filename,
+		Overwrite key with new values if key already exists
+	"""
 	if not os.path.exists(file_name):
 		with open(file_name, 'w') as f:
 			f.write('{}')
@@ -41,9 +60,12 @@ def update_json(data: dict, file_name='client.json'):
 
 
 def get_ip():
+	"""
+		Get the primary ip address of local machine
+	"""
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	try:
-		s.connect(('10.255.255.255', 1))
+		s.connect(('10.255.255.255', 1)) # Some random ip, doesn't need to be alive
 		IP = s.getsockname()[0]
 	except:
 		IP = '127.0.0.1'
@@ -53,6 +75,9 @@ def get_ip():
 
 
 def menu():
+	"""
+		Menu driven code to help setup
+	"""
 	for i, choice in enumerate(['Server', 'Client']):
 		print("%d) %s" % (i + 1, choice))
 	choice = int(input(">> "))
