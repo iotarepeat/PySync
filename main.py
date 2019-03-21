@@ -70,9 +70,9 @@ class Server:
         self.dumpDB(db)
 
     def on_login(self, username):
-        for path,details in self.config.items():
-            if details['user']==username:
-                self.cwd=Path(path)
+        for path, details in self.config.items():
+            if details['user'] == username:
+                self.cwd = Path(path)
                 break
         self.genAndDump()
 
@@ -184,7 +184,8 @@ class Client(Server):
     def deleteFile(self, filename):
         if self.read_only:
             logging.info(
-                "Skipped {}, since read-only-mode set by server".format(filename)
+                "Skipped {}, since read-only-mode set by server".format(
+                    filename)
             )
             return
             # TODO: Add logic to delete empty directories
@@ -194,11 +195,13 @@ class Client(Server):
     def uploadFile(self, filename):
         if self.read_only:
             logging.info(
-                "Skipped {}, since read-only-mode set by server".format(filename)
+                "Skipped {}, since read-only-mode set by server".format(
+                    filename)
             )
             return
         try:
-            self.ftp.storbinary("STOR " + filename, open(self.cwd / filename, "rb"))
+            self.ftp.storbinary("STOR " + filename,
+                                open(self.cwd / filename, "rb"))
         except:
             # Create directory(s) if non existent
             logging.debug("Missing file(s) on remote: " + filename)
@@ -213,7 +216,8 @@ class Client(Server):
                     pass
                 parent += d + "/"
             self.ftp.storbinary(
-                "STOR " + filename.replace("\\", "/"), open(self.cwd / filename, "rb")
+                "STOR " +
+                filename.replace("\\", "/"), open(self.cwd / filename, "rb")
             )
         logging.info("Uploaded " + filename)
 
@@ -292,8 +296,8 @@ class Client(Server):
                 # SHA1 mismatch. Sync according to newer file
                 perfect_files.append(i)
                 if (
-                    self.read_only
-                    or self.getTimestamp(i) > os.stat(self.cwd / i).st_mtime
+                    self.read_only or
+                    self.getTimestamp(i) > os.stat(self.cwd / i).st_mtime
                 ):
                     self.downloadFile(i)
                 else:
@@ -315,13 +319,13 @@ class Client(Server):
 if sys.argv[1].lower() == "c":
     with open("client.json", "r") as f:
         config = json.load(f)
-    for path,details in config.items():
+    for path, details in config.items():
         for ip in details['ip']:
             try:
-                Client(ip=ip,user=details['user'],password=details['password'],local_path=path,read_only=details['read_only']).sync()
+                Client(ip=ip, user=details['user'], password=details['password'],
+                       local_path=path, read_only=details['read_only']).sync()
             except OSError:
                 logging.info("Skipping " + ip)
 # Server
 if sys.argv[1].lower() == "s":
     Server(ip="0.0.0.0").serve_forever()
-
