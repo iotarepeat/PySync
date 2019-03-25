@@ -11,15 +11,15 @@ Install Python 3.x
 
 Before running server from main.py
 ,like this.
- ```bash
+ ```console
 python main.py s
 ```
 or
- ```bash
+ ```console
 python3 main.py s
 ```
 Install pyftplib Module
-```bash
+```console
 pip install pyftplib
 ```
 
@@ -30,13 +30,13 @@ pip install pyftplib
 3. Select Read only Mode to be enable or disable ie **Enter in command line 'y' for Read Only mode and Enter 'n' for it to be disabled**  
 ***Read Only: In this case, read-only means that the file can be only opened or read; you cannot delete, change, or rename any file that's been flagged read-only.***
 4. Make sure the **Client** is running by 
-```bash
+```console
 python main.py c
 ```
 5. A list of available IP's would be shown
 6. Follow the instructions in Command Line Prompt
 7. To **ONLY** run **Client** Followed by the prompt to Enter Folder path to where you want to sync
-```bash
+```console
 python setup.py
 >python setup.py
 1) Server
@@ -46,7 +46,7 @@ Client is running
 
 ```
 Make sure the server is running 
-```bash
+```console
 python main.py s
 [I 2019-03-21 22:15:29] >>> starting FTP server on 0.0.0.0:9090, pid=22424 <<<
 [I 2019-03-21 22:15:29] concurrency model: multi-thread
