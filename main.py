@@ -161,7 +161,6 @@ class Client(Server):
 			logging.info("Failed to connect to {}:{}".format(ip, port))
 			raise OSError
 
-		logging.info("Logging in with {}:{}".format(user, password))
 		self.ftp.login(user=user, passwd=password)
 
 	def get_db(self):
