@@ -92,8 +92,9 @@ def menu():
 		d[local_path]['read_only'] = input("Read only? [Y/N]:").lower() == 'y'
 		update_json(d, file_name='server.json')
 		input("Make sure client is running!! <Press Enter to continue>")
-		print("Scanning ip, please wait...")
 		ip = get_ip()
+		print("Detected ip: "+ip)
+		print("Scanning ip, please wait...")
 		d[local_path]['ip'] = [ip]
 		ip = get_ip_list(ip)
 		for i, j in enumerate(ip):
