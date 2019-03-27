@@ -108,6 +108,7 @@ def menu():
 			d[local_path]['ip'].extend(user_ip)
 		d[local_path]['ip'] = list(set(d[local_path]['ip']))
 		for i in user_ip:
+			s=socket.socket()
 			s.connect((i, 9090))
 			data = json.dumps(d)
 			s.send(data.encode())
